@@ -153,21 +153,14 @@ export default function ProjectEditor({
     setSlides((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   };
 
-  const handleUploadPhotos = async (files: FileList | null) => {
-    toast.success(`Upload: got ${files?.length ?? 0} file(s)`);
-    if (!files || !project) {
-      toast.error('No project loaded');
-      return;
-    }
-    toast.success('Fetching user...');
+  const handleUploadPhotos = async (files: File[]) => {
+    if (!files.length || !project) return;
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (!userId) {
       toast.error('Not signed in');
       return;
     }
-    toast.success(`User ok: ${userId.slice(0, 6)}`);
-    const arr = Array.from(files).slice(0, 10 - slides.length);
-    toast.success(`Processing ${arr.length} file(s), user=${userId.slice(0, 6)}`);
+    const arr = files.slice(0, 10 - slides.length);
     const baseOrder = slides.length;
     let offset = 0;
     for (const file of arr) {
@@ -177,9 +170,7 @@ export default function ProjectEditor({
         continue;
       }
       try {
-        toast.success(`Resizing ${file.name}`);
         const { blob } = await fileToResizedBlob(file);
-        toast.success(`Resized, uploading...`);
         const order = baseOrder + offset;
         const { data: inserted, error: insertErr } = await supabase
           .from('slides')
@@ -480,10 +471,9 @@ export default function ProjectEditor({
               className="hidden"
               onChange={(e) => {
                 const input = e.target as HTMLInputElement;
-                const files = input.files;
-                toast.success(`onChange fired: ${files?.length ?? 0} files`);
-                handleUploadPhotos(files);
+                const files = input.files ? Array.from(input.files) : [];
                 input.value = '';
+                handleUploadPhotos(files);
               }}
             />
           </div>
