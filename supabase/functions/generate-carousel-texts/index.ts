@@ -136,9 +136,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) return json({ error: "ANTHROPIC_API_KEY not configured" }, 503);
-
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -148,6 +145,14 @@ Deno.serve(async (req: Request) => {
     const { data: userData } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     const user = userData.user;
     if (!user) return json({ error: "Unauthorized" }, 401);
+
+    const { data: settings } = await supabase
+      .from("user_settings")
+      .select("anthropic_api_key")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const apiKey = settings?.anthropic_api_key || Deno.env.get("ANTHROPIC_API_KEY");
+    if (!apiKey) return json({ error: "Add your Anthropic API key in Settings" }, 503);
 
     const ok = await checkRateLimit(supabase, user.id);
     if (!ok) return json({ error: "Rate limit exceeded (30/hour)" }, 429);

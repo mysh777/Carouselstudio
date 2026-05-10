@@ -8,11 +8,13 @@ import BrandKits from './pages/BrandKits';
 import Presets from './pages/Presets';
 import ProjectEditor from './pages/ProjectEditor';
 import Toaster from './components/Toaster';
+import Settings from './components/Settings';
 
 export default function App() {
   const { user, loading } = useAuth();
   const [view, setView] = useState<View>('projects');
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (loading) {
     return (
@@ -42,7 +44,7 @@ export default function App() {
         </div>
       ) : (
         <div className="h-screen flex bg-slate-50">
-          <Sidebar view={view} setView={setView} user={user} />
+          <Sidebar view={view} setView={setView} user={user} onOpenSettings={() => setSettingsOpen(true)} />
           <main className="flex-1 overflow-hidden">
             {view === 'projects' && <Projects onOpen={(id) => setOpenProjectId(id)} />}
             {view === 'brands' && <BrandKits />}
@@ -50,6 +52,7 @@ export default function App() {
           </main>
         </div>
       )}
+      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
       <Toaster />
     </>
   );

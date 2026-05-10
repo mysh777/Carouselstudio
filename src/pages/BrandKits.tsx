@@ -8,6 +8,39 @@ import { useDebouncedSave } from '../hooks/useDebouncedSave';
 import { ensureFontSpec } from '../lib/fontLoader';
 import { uploadFont } from '../lib/storage';
 
+const GOOGLE_FONTS = [
+  'Inter',
+  'Roboto',
+  'Open Sans',
+  'Lato',
+  'Montserrat',
+  'Poppins',
+  'Raleway',
+  'Nunito',
+  'Oswald',
+  'Playfair Display',
+  'Merriweather',
+  'Source Sans 3',
+  'PT Sans',
+  'Ubuntu',
+  'Work Sans',
+  'Bebas Neue',
+  'Archivo',
+  'DM Sans',
+  'DM Serif Display',
+  'Manrope',
+  'Space Grotesk',
+  'Rubik',
+  'Karla',
+  'Lora',
+  'Fira Sans',
+  'Josefin Sans',
+  'Quicksand',
+  'Barlow',
+  'IBM Plex Sans',
+  'IBM Plex Serif',
+];
+
 export default function BrandKits() {
   const [kits, setKits] = useState<BrandKit[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -283,12 +316,31 @@ function FontSlot({
         </div>
       </div>
       {value.source === 'google' ? (
-        <input
-          value={value.name}
-          onChange={(e) => onChange({ ...value, name: e.target.value })}
-          placeholder="e.g. Inter or Bebas Neue"
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-        />
+        <div className="flex gap-2">
+          <select
+            value={GOOGLE_FONTS.includes(value.name) ? value.name : '__custom'}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v !== '__custom') onChange({ ...value, name: v });
+            }}
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+          >
+            {GOOGLE_FONTS.map((f) => (
+              <option key={f} value={f} style={{ fontFamily: `"${f}", sans-serif` }}>
+                {f}
+              </option>
+            ))}
+            <option value="__custom">Other (type name)…</option>
+          </select>
+          {!GOOGLE_FONTS.includes(value.name) && (
+            <input
+              value={value.name}
+              onChange={(e) => onChange({ ...value, name: e.target.value })}
+              placeholder="Font name"
+              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            />
+          )}
+        </div>
       ) : (
         <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-300 rounded-lg text-sm text-slate-600 hover:border-slate-400 cursor-pointer">
           <Upload className="w-4 h-4" />

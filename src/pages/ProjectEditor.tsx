@@ -32,7 +32,9 @@ export default function ProjectEditor({
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
+  const [dragTarget, setDragTarget] = useState<'photo' | 'text' | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const brand = brands.find((b) => b.id === project?.brand_kit_id) || null;
@@ -573,7 +575,8 @@ export default function ProjectEditor({
             </div>
           ) : (
             <div
-              className="bg-white rounded-xl shadow-md overflow-hidden"
+              ref={stageRef}
+              className="bg-white rounded-xl shadow-md overflow-hidden relative select-none"
               style={{
                 height: '100%',
                 maxHeight: '75vh',
@@ -581,6 +584,21 @@ export default function ProjectEditor({
               }}
             >
               <canvas ref={canvasRef} className="w-full h-full block" />
+              {activeSlide && (
+                <DragOverlay
+                  key={activeSlide.id}
+                  preset={preset}
+                  slide={activeSlide}
+                  stageRef={stageRef}
+                  dragTarget={dragTarget}
+                  setDragTarget={setDragTarget}
+                  onCommit={(patch) =>
+                    updateSlide(activeSlide.id, {
+                      overrides: { ...(activeSlide.overrides || {}), ...patch },
+                    })
+                  }
+                />
+              )}
             </div>
           )}
         </main>
@@ -711,6 +729,30 @@ export default function ProjectEditor({
                       );
                     })}
                   </div>
+                  <div className="mt-3">
+                    <label className="text-xs text-slate-600 block mb-1">
+                      Photo zoom: {((activeSlide.overrides?.photo_scale ?? 1) * 100).toFixed(0)}%
+                    </label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.05}
+                      value={activeSlide.overrides?.photo_scale ?? 1}
+                      onChange={(e) =>
+                        updateSlide(activeSlide.id, {
+                          overrides: {
+                            ...(activeSlide.overrides as SlideOverrides),
+                            photo_scale: Number(e.target.value),
+                          },
+                        })
+                      }
+                      className="w-full accent-slate-900"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Drag the photo to reposition. Drag the dashed box to move the text plate.
+                    </p>
+                  </div>
                   <button
                     onClick={() => updateSlide(activeSlide.id, { overrides: {} })}
                     className="w-full mt-2 text-xs text-slate-500 hover:text-slate-900 py-1"
@@ -746,6 +788,109 @@ export default function ProjectEditor({
       )}
     </div>
   );
+}
+
+function DragOverlay({
+  preset,
+  slide,
+  stageRef,
+  dragTarget,
+  setDragTarget,
+  onCommit,
+}: {
+  preset: Preset;
+  slide: Slide;
+  stageRef: React.RefObject<HTMLDivElement>;
+  dragTarget: 'photo' | 'text' | null;
+  setDragTarget: (t: 'photo' | 'text' | null) => void;
+  onCommit: (patch: Partial<SlideOverrides>) => void;
+}) {
+  const ov = slide.overrides || {};
+  const sz = ov.safe_zone || (() => {
+    const base = preset.safe_zones;
+    const pos = ov.text_position;
+    if (pos === 'top') return { ...base, y: 6 };
+    if (pos === 'middle') return { ...base, y: 33 };
+    if (pos === 'bottom') return { ...base, y: 60 };
+    return base;
+  })();
+  const tox = (ov.text_offset_x ?? 0) * 100;
+  const toy = (ov.text_offset_y ?? 0) * 100;
+  const textLeft = sz.x + tox;
+  const textTop = sz.y + toy;
+
+  const startDrag = (
+    e: React.PointerEvent,
+    target: 'photo' | 'text',
+  ) => {
+    e.stopPropagation();
+    const stage = stageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    setDragTarget(target);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initial = {
+      photo_offset_x: ov.photo_offset_x ?? 0,
+      photo_offset_y: ov.photo_offset_y ?? 0,
+      text_offset_x: ov.text_offset_x ?? 0,
+      text_offset_y: ov.text_offset_y ?? 0,
+    };
+    let latest: Partial<SlideOverrides> = {};
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = (ev.clientX - startX) / rect.width;
+      const dy = (ev.clientY - startY) / rect.height;
+      if (target === 'photo') {
+        latest = {
+          photo_offset_x: clamp(initial.photo_offset_x + dx, -0.5, 0.5),
+          photo_offset_y: clamp(initial.photo_offset_y + dy, -0.5, 0.5),
+        };
+      } else {
+        latest = {
+          text_offset_x: clamp(initial.text_offset_x + dx, -1, 1),
+          text_offset_y: clamp(initial.text_offset_y + dy, -1, 1),
+        };
+      }
+      onCommit(latest);
+    };
+    const onUp = () => {
+      setDragTarget(null);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  return (
+    <>
+      {/* Photo drag layer (behind text rect) */}
+      <div
+        onPointerDown={(e) => startDrag(e, 'photo')}
+        className={`absolute inset-0 ${dragTarget === 'photo' ? 'cursor-grabbing' : 'cursor-grab'}`}
+        title="Drag to move photo"
+      />
+      {/* Text rect — on top, draggable separately */}
+      <div
+        onPointerDown={(e) => startDrag(e, 'text')}
+        className={`absolute border-2 border-dashed ${
+          dragTarget === 'text' ? 'cursor-grabbing border-sky-400 bg-sky-400/10' : 'cursor-grab border-sky-400/0 hover:border-sky-400/70'
+        } transition-colors`}
+        style={{
+          left: `${textLeft}%`,
+          top: `${textTop}%`,
+          width: `${sz.w}%`,
+          height: `${sz.h}%`,
+        }}
+        title="Drag text area"
+      />
+    </>
+  );
+}
+
+function clamp(v: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, v));
 }
 
 function TextField({

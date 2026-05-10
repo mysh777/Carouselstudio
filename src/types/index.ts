@@ -116,6 +116,11 @@ export type SlideOverrides = {
   safe_zone?: SafeZone;
   text_position?: 'top' | 'middle' | 'bottom';
   background_overlay?: Partial<BackgroundOverlay>;
+  photo_offset_x?: number;
+  photo_offset_y?: number;
+  photo_scale?: number;
+  text_offset_x?: number;
+  text_offset_y?: number;
 };
 
 export type Slide = {

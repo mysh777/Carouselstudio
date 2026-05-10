@@ -92,11 +92,15 @@ export async function renderSlide(
   if (photo) {
     try {
       imgEl = await loadImage(photo);
-      const scale = Math.max(width / imgEl.width, height / imgEl.height);
+      const userScale = slide.overrides?.photo_scale ?? 1;
+      const baseScale = Math.max(width / imgEl.width, height / imgEl.height);
+      const scale = baseScale * userScale;
       const sw = imgEl.width * scale;
       const sh = imgEl.height * scale;
-      const sx = (width - sw) / 2;
-      const sy = (height - sh) / 2;
+      const ox = (slide.overrides?.photo_offset_x ?? 0) * width;
+      const oy = (slide.overrides?.photo_offset_y ?? 0) * height;
+      const sx = (width - sw) / 2 + ox;
+      const sy = (height - sh) / 2 + oy;
       ctx.drawImage(imgEl, sx, sy, sw, sh);
     } catch {
       // ignore
@@ -104,8 +108,10 @@ export async function renderSlide(
   }
 
   const sz = resolveSafeZone(preset, slide);
-  const zx = (sz.x / 100) * width;
-  const zy = (sz.y / 100) * height;
+  const tox = (slide.overrides?.text_offset_x ?? 0) * width;
+  const toy = (slide.overrides?.text_offset_y ?? 0) * height;
+  const zx = (sz.x / 100) * width + tox;
+  const zy = (sz.y / 100) * height + toy;
   const zw = (sz.w / 100) * width;
   const zh = (sz.h / 100) * height;
 
