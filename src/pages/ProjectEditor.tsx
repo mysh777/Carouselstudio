@@ -154,7 +154,7 @@ export default function ProjectEditor({
   };
 
   const handleUploadPhotos = async (files: FileList | null) => {
-    console.log('handleUploadPhotos called', { count: files?.length, project: !!project });
+    toast.success(`Upload: got ${files?.length ?? 0} file(s)`);
     if (!files || !project) {
       toast.error('No project loaded');
       return;
