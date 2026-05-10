@@ -158,6 +158,8 @@ export default function ProjectEditor({
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (!userId) return;
     const arr = Array.from(files).slice(0, 10 - slides.length);
+    const baseOrder = slides.length;
+    let offset = 0;
     for (const file of arr) {
       const err = validateUpload(file);
       if (err) {
@@ -166,7 +168,7 @@ export default function ProjectEditor({
       }
       try {
         const { blob } = await fileToResizedBlob(file);
-        const order = slides.length;
+        const order = baseOrder + offset;
         const { data: inserted } = await supabase
           .from('slides')
           .insert({
@@ -194,6 +196,7 @@ export default function ProjectEditor({
         const signed = await getSignedPhotoUrl(path);
         if (signed) setPhotoUrls((p) => ({ ...p, [path]: signed }));
         setSlides((s) => [...s, { ...(inserted as Slide), photo_url: path }]);
+        offset++;
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Upload failed');
       }
@@ -209,6 +212,7 @@ export default function ProjectEditor({
       toast.error('Enter an idea first');
       return;
     }
+    await saveSlideNow();
     setGenerating(true);
     const count = Math.min(slideCount, slides.length);
     try {
@@ -240,6 +244,7 @@ export default function ProjectEditor({
 
   const regenerateOne = async (idx: number) => {
     if (!preset || !project) return;
+    await saveSlideNow();
     setRegenIdx(idx);
     try {
       const current = slides.map((s) => ({
