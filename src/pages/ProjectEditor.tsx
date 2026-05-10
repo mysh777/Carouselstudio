@@ -474,8 +474,11 @@ export default function ProjectEditor({
               multiple
               className="hidden"
               onChange={(e) => {
-                handleUploadPhotos(e.target.files);
-                e.currentTarget.value = '';
+                const input = e.target as HTMLInputElement;
+                const files = input.files;
+                toast.success(`onChange fired: ${files?.length ?? 0} files`);
+                handleUploadPhotos(files);
+                input.value = '';
               }}
             />
           </div>
