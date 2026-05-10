@@ -154,9 +154,16 @@ export default function ProjectEditor({
   };
 
   const handleUploadPhotos = async (files: FileList | null) => {
-    if (!files || !project) return;
+    console.log('handleUploadPhotos called', { count: files?.length, project: !!project });
+    if (!files || !project) {
+      toast.error('No project loaded');
+      return;
+    }
     const userId = (await supabase.auth.getUser()).data.user?.id;
-    if (!userId) return;
+    if (!userId) {
+      toast.error('Not signed in');
+      return;
+    }
     const arr = Array.from(files).slice(0, 10 - slides.length);
     const baseOrder = slides.length;
     let offset = 0;
@@ -169,7 +176,7 @@ export default function ProjectEditor({
       try {
         const { blob } = await fileToResizedBlob(file);
         const order = baseOrder + offset;
-        const { data: inserted } = await supabase
+        const { data: inserted, error: insertErr } = await supabase
           .from('slides')
           .insert({
             project_id: project.id,
@@ -182,13 +189,13 @@ export default function ProjectEditor({
           })
           .select()
           .maybeSingle();
-        if (!inserted) {
-          toast.error('Failed to create slide');
+        if (insertErr || !inserted) {
+          toast.error(`Failed to create slide: ${insertErr?.message || 'unknown'}`);
           continue;
         }
         const path = await uploadPhoto(userId, project.id, (inserted as Slide).id, blob);
         if (!path) {
-          toast.error('Photo upload failed');
+          toast.error('Photo upload failed (storage)');
           await supabase.from('slides').delete().eq('id', (inserted as Slide).id);
           continue;
         }
@@ -198,6 +205,7 @@ export default function ProjectEditor({
         setSlides((s) => [...s, { ...(inserted as Slide), photo_url: path }]);
         offset++;
       } catch (e) {
+        console.error('upload failed', e);
         toast.error(e instanceof Error ? e.message : 'Upload failed');
       }
     }

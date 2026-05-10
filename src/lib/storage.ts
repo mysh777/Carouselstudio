@@ -29,7 +29,10 @@ export async function uploadPhoto(
     contentType: 'image/jpeg',
     upsert: true,
   });
-  if (error) return null;
+  if (error) {
+    console.error('uploadPhoto storage error', error);
+    return null;
+  }
   cache.delete(path);
   return path;
 }
