@@ -159,12 +159,15 @@ export default function ProjectEditor({
       toast.error('No project loaded');
       return;
     }
+    toast.success('Fetching user...');
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (!userId) {
       toast.error('Not signed in');
       return;
     }
+    toast.success(`User ok: ${userId.slice(0, 6)}`);
     const arr = Array.from(files).slice(0, 10 - slides.length);
+    toast.success(`Processing ${arr.length} file(s), user=${userId.slice(0, 6)}`);
     const baseOrder = slides.length;
     let offset = 0;
     for (const file of arr) {
@@ -174,7 +177,9 @@ export default function ProjectEditor({
         continue;
       }
       try {
+        toast.success(`Resizing ${file.name}`);
         const { blob } = await fileToResizedBlob(file);
+        toast.success(`Resized, uploading...`);
         const order = baseOrder + offset;
         const { data: inserted, error: insertErr } = await supabase
           .from('slides')
